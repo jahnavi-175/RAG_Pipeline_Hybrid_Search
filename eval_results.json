@@ -1,0 +1,6 @@
+{
+  "bm25_only_hit_rate": 0.8,
+  "vector_only_hit_rate": 1.0,
+  "hybrid_hit_rate": 1.0,
+  "test_set_size": 15
+}
