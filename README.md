@@ -1,85 +1,109 @@
-# RAG Pipeline with Hybrid Search
+# Hybrid-Search RAG Pipeline with Relational Metadata Filtering
+An enterprise-grade Retrieval-Augmented Generation (RAG) system built over a curated Wikipedia AI/ML corpus. This pipeline combines dense semantic vector search with sparse lexical BM25 keyword search via Reciprocal Rank Fusion (RRF), backed by a SQLite relational database for structured metadata pre-filtering before context is passed to Google Gemini.
 
-A retrieval-augmented generation system over a Wikipedia AI/ML corpus, combining
-**vector similarity search** (semantic) with **BM25 keyword search** (lexical),
-fused via Reciprocal Rank Fusion (RRF), and answered with Gemini.
+### Live Interactive Demo: https://ragpipelinehybridsearch-y5aacuyanzkyjsynruyk7e.streamlit.app/
 
-## Why hybrid search?
+## System Architecture & Highlights
+Standard vector search often misses exact keyword hits (such as domain acronyms or technical identifiers like BERT or ELIZA), while pure lexical search fails on conceptual queries. This pipeline resolves both limitations by fusing vector and keyword methods with structured SQL metadata constraints.
 
-Vector search alone misses exact keyword matches (e.g. acronyms, proper nouns
-like "BERT" or "AlphaGo") when the embedding doesn't capture them well. BM25
-alone misses semantically related content phrased differently. Combining both
-catches more relevant chunks than either alone — see `eval_results.json` for
-the measured improvement on this project's test set.
+## Core Capabilities
+Hybrid Retrieval (Dense + Sparse): Integrates Gemini vector embeddings stored in ChromaDB with an in-memory BM25 index.
 
-## Architecture
+Reciprocal Rank Fusion (RRF): Merges vector and keyword search ranks without requiring score normalization across disparate scales.
 
-```
-Wikipedia articles
-      |
-   chunking (300-word chunks, 50-word overlap)
-      |
-   Gemini embeddings ---------> ChromaDB (vector store)
-      |
-   BM25 index (keyword, built from same chunks)
-      |
-   query --> [vector search + BM25 search] --> Reciprocal Rank Fusion --> top-5 chunks
-      |
-   Gemini (gemini-1.5-flash) generates answer grounded in retrieved chunks
-```
+Relational Metadata Pre-Filtering: Uses an embedded SQLite database (metadata.db) to filter candidate articles on structured properties (e.g., minimum article length) prior to hybrid retrieval.
 
-## Setup
+Production-Grade Ingestion Pipeline: Built with batch embedding, exponential backoff, automatic retry mechanisms, and state persistence to handle strict external API rate limits gracefully.
 
-1. Get a free Gemini API key: https://aistudio.google.com/apikey
-2. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
-3. Set your API key:
-   ```
-   export GEMINI_API_KEY="your-key-here"
-   ```
-   (or create a `.env` file with `GEMINI_API_KEY=your-key-here`)
+Dual Interface Options: Features both a web UI built with Streamlit and a terminal CLI for testing.
 
-## Usage
+## Pipeline Architecture
+                    ┌────────────────────────────┐
+                    │  Wikipedia Corpus Fetcher  │
+                    └─────────────┬──────────────┘
+                                  │
+         ┌────────────────────────┴────────────────────────┐
+         ▼                                                 ▼
+┌──────────────────────┐                       ┌──────────────────────┐
+│ SQLite Relational DB │                       │ Document Chunker     │
+│  (Article Metadata)  │                       │ (300 words / overlap)│
+└────────┬─────────────┘                       └──────────┬───────────┘
+         │                                                │
+         │                        ┌───────────────────────┴───────────────────────┐
+         │                        ▼                                               ▼
+         │             ┌──────────────────────┐                        ┌──────────────────────┐
+         │             │  Chroma Vector Store │                        │  BM25 Lexical Index  │
+         │             │ (gemini-embedding-2) │                        │   (In-Memory Index)  │
+         │             └──────────┬───────────┘                        └──────────┬───────────┘
+         │                        │                                               │
+         └──────────────────────┐ │ ┌─────────────────────────────────────────────┘
+                                ▼ ▼ ▼
+                     ┌────────────────────────┐
+                     │ User Query + SQL Filter│
+                     └──────────┬─────────────┘
+                                │
+                                ▼
+                     ┌────────────────────────┐
+                     │ Reciprocal Rank Fusion │
+                     └──────────┬─────────────┘
+                                │ (Top-K Chunks)
+                                ▼
+                     ┌────────────────────────┐
+                     │   Gemini Generation    │
+                     └────────────────────────┘
 
-```
-python ingest.py     # Day 1-3: fetch Wikipedia articles, chunk, embed, store
-python app.py         # Day 6-7: interactive Q&A demo
-python eval.py        # Day 7: benchmark hybrid vs vector-only retrieval
-```
+## Evaluation & Benchmark Results
+The pipeline includes a automated evaluation suite (eval.py) testing top-5 retrieval accuracy across semantic, keyword, and acronym-focused queries.
 
-## 7-Day Build Plan
+### Search Methodology	Top-5 Hit Rate
+BM25 Keyword Search	80.0%
+Vector Similarity Search	100.0%
+Hybrid Search (RRF)	100.0%
+Key Takeaway: Combining BM25 keyword matching with semantic vector search improved top-5 retrieval accuracy by +20.0% over traditional lexical keyword search alone.
 
-| Day | Task |
-|-----|------|
-| 1-2 | Run `ingest.py` fetching logic; verify articles pull cleanly, tune chunk size |
-| 2-3 | Finish embedding + Chroma storage; confirm vector search returns sensible results |
-| 4   | Build `hybrid_search.py` — BM25 index + RRF fusion; sanity-check ranked results |
-| 5-6 | Build `rag.py` — prompt template, grounded generation, source citation |
-| 6-7 | Build `app.py` CLI demo; run `eval.py` to get hit-rate numbers |
-| 7   | Write this README, add architecture diagram, record a short demo GIF, push to GitHub |
+## Getting Started
+### Prerequisites
+1. Python 3.10+
+2. A free Gemini API key from Google AI Studio
 
-## What to say about this project on your resume/LinkedIn
+### Installation
+Clone the repository:
+git clone https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+cd YOUR_REPO_NAME
+Install dependencies:
+pip install -r requirements.txt
+Configure your API Key:
+Create a .env file in the root directory:
+GEMINI_API_KEY="actual-api-key"
 
-Don't just describe what it does — cite the eval numbers. Example:
+## Running the Application
+### 1. Data Ingestion & Indexing
+Fetch articles, build the SQLite metadata database, and populate ChromaDB and BM25 indices:
+python ingest.py
 
-> "Built a RAG pipeline with hybrid (vector + BM25) retrieval over a Wikipedia
-> corpus, using Reciprocal Rank Fusion. Hybrid retrieval improved top-5 hit
-> rate by X percentage points over vector-only search on a 10-question
-> evaluation set (see eval_results.json)."
+### 2. Streamlit Web Interface (Recommended)
+Launch the interactive web UI with real-time relational filtering controls:
+streamlit run streamlit_app.py
 
-Fill in the actual X from your `eval_results.json` once you run `eval.py`.
-BM25-only top-5 hit rate:    80.0%
-Vector-only top-5 hit rate:  100.0%
-Hybrid (RRF) top-5 hit rate: 100.0%
-Improvement over BM25:       20.0%
-Improvement over Vector:     0.0%
+### 3. Command Line Interface
+Run the simple CLI demo directly in your terminal:
+python app.py
 
-## Extending this for the internship application
+### 4. Run Retrieval Evaluation Benchmarks
+Evaluate and generate benchmark numbers across vector, BM25, and hybrid retrieval:
+python eval.py
 
-If you want to go further to match "high volumes of data" / "relational DB"
-from the eligibility criteria, a natural extension (not required for the 7-day
-version) is to also index structured metadata in a small SQLite table
-(e.g. article length, category, last-updated) and let queries filter on it
-before retrieval — showing you can combine relational and vector data sources.
+## Repository Structure
+├── data/                  # Storage directory for chunks and SQLite metadata
+│   ├── corpus.json        # Raw article storage
+│   ├── chunks.json        # Pre-processed text chunks
+│   └── metadata.db        # SQLite relational database
+├── chroma_store/          # ChromaDB persistent vector database
+├── config.py              # Central pipeline configuration and environment management
+├── ingest.py              # MediaWiki ingestion, SQLite creation, and batch embedding
+├── hybrid_search.py       # Hybrid search engine (BM25 + Vector + SQLite + RRF)
+├── rag.py                 # Grounded context generation using Gemini
+├── app.py                 # Interactive Terminal CLI interface
+├── streamlit_app.py       # Interactive Streamlit Web UI application
+├── eval.py                # Retrieval accuracy benchmarking suite
+└── requirements.txt       # Project dependencies
