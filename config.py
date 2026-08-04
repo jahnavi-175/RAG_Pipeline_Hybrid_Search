@@ -30,14 +30,22 @@ except Exception:
 warnings.filterwarnings("ignore")
 
 from dotenv import load_dotenv
-
-load_dotenv()  # allows using a .env file instead of exporting manually
-
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "").strip()
+
+# If not in os.environ, check Streamlit's secrets manager
+if not GEMINI_API_KEY:
+    try:
+        import streamlit as st
+        if "GEMINI_API_KEY" in st.secrets:
+            GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"].strip()
+            os.environ["GEMINI_API_KEY"] = GEMINI_API_KEY
+    except Exception:
+        pass
+
 if not GEMINI_API_KEY:
     raise EnvironmentError(
         "GEMINI_API_KEY not set. Get a free key at https://aistudio.google.com/apikey "
-        "and set it as an environment variable or in a .env file."
+        "and set it as an environment variable, in Streamlit secrets, or in a .env file."
     )
 
 # Models (both on Gemini's free tier)
