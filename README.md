@@ -18,6 +18,7 @@ Production-Grade Ingestion Pipeline: Built with batch embedding, exponential bac
 Dual Interface Options: Features both a web UI built with Streamlit and a terminal CLI for testing.
 
 ## Pipeline Architecture
+```text
                     ┌────────────────────────────┐
                     │  Wikipedia Corpus Fetcher  │
                     └─────────────┬──────────────┘
@@ -51,6 +52,7 @@ Dual Interface Options: Features both a web UI built with Streamlit and a termin
                      ┌────────────────────────┐
                      │   Gemini Generation    │
                      └────────────────────────┘
+```
 
 ## Evaluation & Benchmark Results
 The pipeline includes a automated evaluation suite (eval.py) testing top-5 retrieval accuracy across semantic, keyword, and acronym-focused queries.
@@ -94,6 +96,7 @@ Evaluate and generate benchmark numbers across vector, BM25, and hybrid retrieva
 python eval.py
 
 ## Repository Structure
+```text
 ├── data/                  # Storage directory for chunks and SQLite metadata
 │   ├── corpus.json        # Raw article storage
 │   ├── chunks.json        # Pre-processed text chunks
@@ -107,3 +110,4 @@ python eval.py
 ├── streamlit_app.py       # Interactive Streamlit Web UI application
 ├── eval.py                # Retrieval accuracy benchmarking suite
 └── requirements.txt       # Project dependencies
+```
